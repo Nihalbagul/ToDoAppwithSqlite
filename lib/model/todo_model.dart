@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 enum PriorityLevel { low, medium, high }
 
 class TodoModel {
+  int? id;
   String todoTitle;
   String? description;
   bool completed;
@@ -12,6 +15,7 @@ class TodoModel {
   final DateTime creationDate;
 
   TodoModel({
+    this.id,
     required this.todoTitle,
     this.description,
     this.completed = false,
@@ -24,39 +28,50 @@ class TodoModel {
     completed = !completed;
   }
 
-  void update(String newTitle, String? newDescription, DateTime? newDueDate,
-      TimeOfDay? newReminder, PriorityLevel newPriority) {
-    todoTitle = newTitle;
-    description = newDescription;
-    dueDate = newDueDate;
-    reminder = newReminder;
-    priority = newPriority;
+  TodoModel copyWith({
+    int? id,
+    String? todoTitle,
+    String? description,
+    bool? completed,
+    DateTime? dueDate,
+    TimeOfDay? reminder,
+    PriorityLevel? priority,
+  }) {
+    return TodoModel(
+      id: id ?? this.id,
+      todoTitle: todoTitle ?? this.todoTitle,
+      description: description ?? this.description,
+      completed: completed ?? this.completed,
+      dueDate: dueDate ?? this.dueDate,
+      reminder: reminder ?? this.reminder,
+      priority: priority ?? this.priority,
+    );
   }
 
-  // Convert a TodoModel into a Map
   Map<String, dynamic> toJson() => {
+        'id': id,
         'todoTitle': todoTitle,
         'description': description,
-        'completed': completed,
+        'completed': completed ? 1 : 0,
         'dueDate': dueDate?.toIso8601String(),
         'reminder': reminder != null
-            ? {'hour': reminder!.hour, 'minute': reminder!.minute}
+            ? jsonEncode({'hour': reminder!.hour, 'minute': reminder!.minute})
             : null,
         'priority': priority.index,
         'creationDate': creationDate.toIso8601String(),
       };
 
-  // Convert a Map into a TodoModel
   factory TodoModel.fromJson(Map<String, dynamic> json) => TodoModel(
+        id: json['id'],
         todoTitle: json['todoTitle'],
         description: json['description'],
-        completed: json['completed'],
+        completed: json['completed'] == 1,
         dueDate:
             json['dueDate'] != null ? DateTime.parse(json['dueDate']) : null,
         reminder: json['reminder'] != null
             ? TimeOfDay(
-                hour: json['reminder']['hour'],
-                minute: json['reminder']['minute'],
+                hour: jsonDecode(json['reminder'])['hour'],
+                minute: jsonDecode(json['reminder'])['minute'],
               )
             : null,
         priority: PriorityLevel.values[json['priority']],

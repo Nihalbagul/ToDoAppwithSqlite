@@ -1,15 +1,9 @@
 import 'dart:collection';
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../model/todo_model.dart';
+import '../services/database_service.dart';
 
-// Define SortCriterion enum here
-enum SortCriterion {
-  priority,
-  dueDate,
-  creationDate,
-}
+enum SortCriterion { priority, dueDate, creationDate }
 
 class TodoProvider with ChangeNotifier {
   List<TodoModel> _tasks = [];
@@ -18,7 +12,7 @@ class TodoProvider with ChangeNotifier {
   String _searchQuery = '';
 
   TodoProvider() {
-    _loadTasksFromPrefs(); // Load tasks when provider is initialized
+    _loadTasksFromDb(); // Load tasks when provider is initialized
   }
 
   UnmodifiableListView<TodoModel> get allTasks {
@@ -66,59 +60,53 @@ class TodoProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void addTask(String task,
+  Future<void> addTask(String task,
       {String? description,
       PriorityLevel priority = PriorityLevel.medium,
       DateTime? dueDate,
-      TimeOfDay? reminder}) {
-    _tasks.add(TodoModel(
+      TimeOfDay? reminder}) async {
+    final newTask = TodoModel(
       todoTitle: task,
       description: description,
       priority: priority,
       dueDate: dueDate,
       reminder: reminder,
-    ));
-    _saveTasksToPrefs(); // Save tasks after adding
+    );
+    await DatabaseService().insertTodo(newTask);
+    _loadTasksFromDb(); // Refresh tasks after adding
+  }
+
+  Future<void> toggleTask(TodoModel task) async {
+    final updatedTask = task.copyWith(completed: !task.completed);
+    await DatabaseService().updateTodo(updatedTask);
+    _loadTasksFromDb(); // Refresh tasks after toggling completion
+  }
+
+  Future<void> deleteTask(TodoModel task) async {
+    await DatabaseService().deleteTodo(task.id!);
+    _loadTasksFromDb(); // Refresh tasks after deletion
+  }
+
+  Future<void> updateTask(
+      TodoModel task,
+      String newTitle,
+      String? newDescription,
+      DateTime? newDueDate,
+      TimeOfDay? newReminder,
+      PriorityLevel newPriority) async {
+    final updatedTask = task.copyWith(
+      todoTitle: newTitle,
+      description: newDescription,
+      dueDate: newDueDate,
+      reminder: newReminder,
+      priority: newPriority,
+    );
+    await DatabaseService().updateTodo(updatedTask);
+    _loadTasksFromDb(); // Refresh tasks after updating
+  }
+
+  Future<void> _loadTasksFromDb() async {
+    _tasks = await DatabaseService().todos();
     notifyListeners();
-  }
-
-  void toggleTask(TodoModel task) {
-    final taskIndex = _tasks.indexOf(task);
-    _tasks[taskIndex].toggleCompleted();
-    _saveTasksToPrefs(); // Save tasks after toggling completion
-    notifyListeners();
-  }
-
-  void deleteTask(TodoModel task) {
-    _tasks.remove(task);
-    _saveTasksToPrefs(); // Save tasks after deletion
-    notifyListeners();
-  }
-
-  void updateTask(TodoModel task, String newTitle, String? newDescription,
-      DateTime? newDueDate, TimeOfDay? newReminder, PriorityLevel newPriority) {
-    final taskIndex = _tasks.indexOf(task);
-    _tasks[taskIndex]
-        .update(newTitle, newDescription, newDueDate, newReminder, newPriority);
-    _saveTasksToPrefs(); // Save tasks after updating
-    notifyListeners();
-  }
-
-  Future<void> _saveTasksToPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    List<String> tasks =
-        _tasks.map((task) => jsonEncode(task.toJson())).toList();
-    prefs.setStringList('tasks', tasks);
-  }
-
-  Future<void> _loadTasksFromPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    final List<String>? taskStrings = prefs.getStringList('tasks');
-    if (taskStrings != null) {
-      _tasks = taskStrings
-          .map((taskString) => TodoModel.fromJson(jsonDecode(taskString)))
-          .toList();
-      notifyListeners();
-    }
   }
 }
