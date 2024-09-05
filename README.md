@@ -41,8 +41,8 @@ To get started with this project, clone the repository and follow the installati
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/habit-tracker-app.git
-   cd habit-tracker-app
+   git clone https://github.com/yourusername/ToDoAppwithSqlite.git
+   cd ToDoAppwithSqlite
    ```
 2. Install dependencies:
    ```bash
